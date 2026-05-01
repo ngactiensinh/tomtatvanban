@@ -88,7 +88,17 @@ if nut_xu_ly:
             try:
                 # Kích hoạt não bộ Gemini
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-1.5-flash-latest') # Model siêu tốc độ
+                
+                # --- RADAR TỰ ĐỘNG DÒ TÌM MODEL CHUẨN ---
+                model_name = 'gemini-pro' # Tên dự phòng mặc định
+                for m in genai.list_models():
+                    if 'generateContent' in m.supported_generation_methods:
+                        model_name = m.name # Lấy chính xác tên model mà Google cấp cho Key này
+                        if 'flash' in model_name: 
+                            break # Ưu tiên chốt bản Flash vì nó phản hồi siêu nhanh
+                
+                model = genai.GenerativeModel(model_name)
+                # -----------------------------------------
                 
                 # Tạo câu lệnh (Prompt) ép AI làm theo đúng format
                 if "Tóm tắt" in che_do:
