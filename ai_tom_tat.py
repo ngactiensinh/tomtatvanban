@@ -41,7 +41,7 @@ with st.sidebar:
     try:
         api_key = st.secrets["GEMINI_API_KEY"]
         st.success("✅ Trợ lý AI đã kết nối an toàn với Két sắt bí mật.")
-        genai.configure(api_key=api_key) # Cấu hình luôn ở đây
+        genai.configure(api_key=api_key) 
     except Exception:
         api_key = None
         st.error("⚠️ Lỗi: Không tìm thấy chìa khóa API trong hệ thống!")
@@ -94,29 +94,22 @@ if nut_xu_ly:
             file_duoc_upload_len_ai = None
             noidung_van_ban_goc = ""
             
-            # 1. XỬ LÝ FILE NẾU CÓ TẢI LÊN
             if file_tai_len is not None:
                 file_ext = file_tai_len.name.split('.')[-1].lower()
                 
-                # NẾU LÀ FILE PDF (SCAN HOẶC CHỮ) -> NÉM THẲNG CHO GOOGLE
                 if file_ext == 'pdf':
                     st.info("🔎 Đang dùng Mắt thần AI để soi toàn bộ bản Scan PDF...")
                     try:
-                        # Ghi tạm file ra ổ cứng máy chủ
                         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
                             tmp_file.write(file_tai_len.getvalue())
                             duong_dan_tam = tmp_file.name
                         
-                        # Upload file trực tiếp lên kho chứa của Gemini
                         file_duoc_upload_len_ai = genai.upload_file(duong_dan_tam)
-                        
-                        # Xóa file tạm trên máy chủ cho nhẹ
                         os.remove(duong_dan_tam)
                     except Exception as e:
                         st.error(f"❌ Lỗi khi tải file PDF lên AI: {e}")
                         hop_le = False
                         
-                # NẾU LÀ FILE WORD/TXT -> VẪN ĐỌC CHỮ NHƯ BÌNH THƯỜNG CHO NHANH
                 elif file_ext == 'docx':
                     try:
                         doc = docx.Document(file_tai_len)
@@ -129,17 +122,23 @@ if nut_xu_ly:
                     noidung_van_ban_goc = file_tai_len.getvalue().decode("utf-8")
                     st.info("✅ Đã đọc xong dữ liệu Text.")
             
-            # Nếu không có file thì lấy chữ dán ở ô
             else:
                 noidung_van_ban_goc = van_ban_goc
 
-            # 2. BẮT ĐẦU YÊU CẦU AI PHÂN TÍCH VÀ NHẢ CHỮ LIVE
             if hop_le:
                 try:
-                    # Gọi Model 1.5 Flash VIP
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    # --- BẬT LẠI RADAR TÌM MODEL ĐỂ TRÁNH LỖI 404 ---
+                    model_name = 'gemini-1.5-flash-latest' # Tên dự phòng 
+                    for m in genai.list_models():
+                        if 'generateContent' in m.supported_generation_methods:
+                            # Phải bắt đúng dòng họ 1.5 thì mới có "Mắt thần" đọc PDF
+                            if '1.5' in m.name and ('flash' in m.name or 'pro' in m.name):
+                                model_name = m.name
+                                break
                     
-                    # Chuẩn bị lời dặn dò (Prompt)
+                    model = genai.GenerativeModel(model_name)
+                    # -----------------------------------------------
+                    
                     if "Tóm tắt" in che_do:
                         loi_dan = "Bạn là một chuyên viên tổng hợp tài liệu chuyên nghiệp của cơ quan Đảng. Hãy đọc tài liệu đính kèm và tóm tắt lại những nội dung cốt lõi nhất một cách cực kỳ ngắn gọn, súc tích trong khoảng 3 đến 5 câu. Giữ văn phong trang trọng, nghiêm túc."
                     elif "Ý chính" in che_do:
@@ -147,7 +146,6 @@ if nut_xu_ly:
                     else:
                         loi_dan = "Bạn là một thư ký xuất sắc. Hãy đọc tài liệu đính kèm và lập một dàn ý chi tiết theo cấu trúc phân cấp (I, II, III... rồi đến 1, 2, 3...). Dàn ý phải bao quát toàn bộ nội dung của văn bản, các tiêu đề phải ngắn gọn, toát lên được ý chính của từng phần."
 
-                    # Gom nguyên liệu gửi cho AI (Bao gồm File Scan PDF và Lời dặn dò)
                     noi_dung_gui_di = [loi_dan]
                     if file_duoc_upload_len_ai:
                         noi_dung_gui_di.append(file_duoc_upload_len_ai)
@@ -157,18 +155,16 @@ if nut_xu_ly:
                     st.markdown("---")
                     st.markdown("<h3 style='color: #10b981;'>✨ KẾT QUẢ XỬ LÝ TỪ AI:</h3>", unsafe_allow_html=True)
                     
-                    # Tạo khung trống để chữ chạy ra từ từ
                     khung_ket_qua = st.empty()
                     van_ban_hoan_thanh = ""
                     
-                    # GỌI API CHẾ ĐỘ STREAMING
+                    # NHẢ CHỮ LIVE
                     response = model.generate_content(noi_dung_gui_di, stream=True)
                     
                     for chunk in response:
                         van_ban_hoan_thanh += chunk.text
                         khung_ket_qua.markdown(f"<div class='result-box'>{van_ban_hoan_thanh}</div>", unsafe_allow_html=True)
                     
-                    # Dọn dẹp: Xóa file PDF khỏi kho Google sau khi đọc xong để bảo mật
                     if file_duoc_upload_len_ai:
                         try:
                             genai.delete_file(file_duoc_upload_len_ai.name)
