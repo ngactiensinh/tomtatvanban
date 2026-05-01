@@ -113,13 +113,11 @@ if nut_xu_ly:
                 noidung_can_xu_ly = doc_noi_dung_file(file_tai_len)
                 so_ky_tu = len(noidung_can_xu_ly)
                 
-                # Cảnh báo nếu là file ảnh/scan
                 if so_ky_tu < 50:
                     st.error("❌ CẢNH BÁO MÙ CHỮ: Hệ thống không đọc được chữ nào từ file này! Đây có thể là file ảnh hoặc PDF dạng scan. Vui lòng dùng file Word hoặc dán chữ thủ công.")
                     hop_le = False
                 else:
                     st.info(f"🔎 X-Quang: Đã trích xuất thành công **{so_ky_tu:,}** ký tự từ file.")
-                    # Cắt ngọn nếu file quá dài (Tránh lỗi 429)
                     if so_ky_tu > 150000:
                         st.warning("⚠️ Tài liệu siêu dài! Để chống cháy nổ hệ thống, AI sẽ chỉ đọc và xử lý 150.000 ký tự đầu tiên.")
                         noidung_can_xu_ly = noidung_can_xu_ly[:150000]
@@ -133,9 +131,18 @@ if nut_xu_ly:
         if hop_le:
             with st.spinner("🤖 Trợ lý AI đang tư duy và phân tích dữ liệu..."):
                 try:
-                    # Vì sếp đã có key xịn mới, chốt luôn bản 1.5 Flash chuẩn để không bị kén quota
                     genai.configure(api_key=api_key)
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    
+                    # --- GỌI LẠI RADAR DÒ TÌM MODEL ---
+                    model_name = 'gemini-pro' 
+                    for m in genai.list_models():
+                        if 'generateContent' in m.supported_generation_methods:
+                            model_name = m.name
+                            if 'flash' in model_name: 
+                                break 
+                    
+                    model = genai.GenerativeModel(model_name)
+                    # -----------------------------------
                     
                     if "Tóm tắt" in che_do:
                         prompt = f"Bạn là một chuyên viên tổng hợp tài liệu chuyên nghiệp của cơ quan Đảng. Hãy đọc đoạn văn bản sau và tóm tắt lại những nội dung cốt lõi nhất một cách cực kỳ ngắn gọn, súc tích trong khoảng 3 đến 5 câu. Giữ văn phong trang trọng, nghiêm túc.\n\nVĂN BẢN CẦN TÓM TẮT:\n{noidung_can_xu_ly}"
