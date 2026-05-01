@@ -88,7 +88,7 @@ if nut_xu_ly:
             try:
                 # Kích hoạt não bộ Gemini
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-1.5-flash') # Model siêu tốc độ
+               model = genai.GenerativeModel('gemini-1.5-flash-latest') # Model siêu tốc độ
                 
                 # Tạo câu lệnh (Prompt) ép AI làm theo đúng format
                 if "Tóm tắt" in che_do:
