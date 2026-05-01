@@ -34,38 +34,33 @@ if "da_ghi_truy_cap" not in st.session_state:
         pass
 
 # ==========================================
-# CẤU HÌNH API KEY (TỪ KÉT SẮT)
+# CẤU HÌNH API KEY TỪ KÉT SẮT
 # ==========================================
 with st.sidebar:
     st.markdown("<h3 style='color:#004B87;'>⚙️ CẤU HÌNH HỆ THỐNG</h3>", unsafe_allow_html=True)
     try:
         api_key = st.secrets["GEMINI_API_KEY"]
-        st.success("✅ Trợ lý AI đã kết nối an toàn với Két sắt bí mật.")
-        genai.configure(api_key=api_key) 
+        genai.configure(api_key=api_key)
+        st.success("✅ Đã kết nối Chìa khóa VIP an toàn.")
+        st.info("🚀 Cấu hình: Gemini 1.5 Flash (Hỗ trợ File Mắt thần).")
     except Exception:
         api_key = None
-        st.error("⚠️ Lỗi: Không tìm thấy chìa khóa API trong hệ thống!")
-        
-    st.markdown("---")
-    st.markdown("💡 **Gợi ý sử dụng:**<br>1. Tải lên file Word (.docx) hoặc PDF (hỗ trợ cả bản Scan).<br>2. Chọn chế độ Xử lý và bấm Thực hiện.", unsafe_allow_html=True)
+        st.error("⚠️ Lỗi: Không tìm thấy chìa khóa API trong Két sắt!")
 
 # ==========================================
-# HEADER
+# HEADER VÀ GIAO DIỆN CHÍNH
 # ==========================================
 st.markdown("<h1 class='main-title'>🤖 TRỢ LÝ AI TÓM TẮT VĂN BẢN</h1>", unsafe_allow_html=True)
 st.markdown("<p class='sub-title'>Giải pháp đọc và xử lý tài liệu thông minh dành cho Cán bộ, Chuyên viên</p>", unsafe_allow_html=True)
 
-# ==========================================
-# GIAO DIỆN CHÍNH
-# ==========================================
 col1, col2 = st.columns([1.2, 1])
 
 with col1:
-    st.markdown("**📂 CÁCH 1: Tải lên file tài liệu**")
-    file_tai_len = st.file_uploader("Hỗ trợ: PDF (bản Scan có dấu đỏ/chữ ký), Word (.docx), Text (.txt)", type=["pdf", "docx", "txt"])
+    st.markdown("**📂 CÁCH 1: Tải lên file tài liệu (Hỗ trợ Mắt thần)**")
+    file_tai_len = st.file_uploader("Hỗ trợ: PDF (kể cả bản Scan ảnh), Word (.docx), Text (.txt)", type=["pdf", "docx", "txt"])
     
     st.markdown("**📝 CÁCH 2: Dán văn bản thủ công**")
-    van_ban_goc = st.text_area("", height=140, placeholder="Dán nội dung vào đây nếu không có file...")
+    van_ban_goc = st.text_area("", height=120, placeholder="Dán nội dung vào đây nếu không có file...")
 
 with col2:
     st.markdown("**🎯 Chọn Yêu cầu Xử lý:**")
@@ -75,30 +70,30 @@ with col2:
          "📋 Trích xuất Ý chính (Gạch đầu dòng các luận điểm)", 
          "🗺️ Lập Dàn ý chi tiết (Trình bày cấu trúc I, II, III...)")
     )
-    
     st.markdown("<br>", unsafe_allow_html=True)
     nut_xu_ly = st.button("🚀 BẮT ĐẦU ĐỌC VÀ XỬ LÝ")
 
 # ==========================================
-# XỬ LÝ LOGIC AI (HỖ TRỢ VISION ĐỌC SCAN)
+# LOGIC XỬ LÝ AI
 # ==========================================
 if nut_xu_ly:
     if not api_key:
-        st.error("⚠️ Hệ thống đang thiếu chìa khóa. Vui lòng kiểm tra lại thiết lập Secrets.")
+        st.error("⚠️ Hệ thống đang thiếu chìa khóa VIP.")
     elif file_tai_len is None and not van_ban_goc.strip():
-        st.warning("⚠️ Đồng chí chưa tải file lên hoặc chưa dán văn bản nào!")
+        st.warning("⚠️ Đồng chí chưa cung cấp file hay văn bản nào!")
     else:
-        with st.spinner("🤖 Hệ thống đang chuẩn bị dữ liệu..."):
-            
+        with st.spinner("🤖 Trợ lý AI đang thu thập dữ liệu..."):
             hop_le = True
             file_duoc_upload_len_ai = None
             noidung_van_ban_goc = ""
             
+            # --- XỬ LÝ FILE ---
             if file_tai_len is not None:
                 file_ext = file_tai_len.name.split('.')[-1].lower()
                 
+                # NẾU LÀ PDF: NÉM LÊN CHO MẮT THẦN ĐỌC SCAN
                 if file_ext == 'pdf':
-                    st.info("🔎 Đang dùng Mắt thần AI để soi toàn bộ bản Scan PDF...")
+                    st.info("🔎 Đang nạp file PDF vào hệ thống Mắt thần Google...")
                     try:
                         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
                             tmp_file.write(file_tai_len.getvalue())
@@ -107,73 +102,58 @@ if nut_xu_ly:
                         file_duoc_upload_len_ai = genai.upload_file(duong_dan_tam)
                         os.remove(duong_dan_tam)
                     except Exception as e:
-                        st.error(f"❌ Lỗi khi tải file PDF lên AI: {e}")
+                        st.error(f"❌ Lỗi tải file lên máy chủ Google: {e}")
                         hop_le = False
                         
+                # NẾU LÀ WORD: ĐỌC CHỮ CHO NHANH
                 elif file_ext == 'docx':
                     try:
                         doc = docx.Document(file_tai_len)
                         noidung_van_ban_goc = "\n".join([para.text for para in doc.paragraphs])
-                        st.info("✅ Đã đọc xong dữ liệu từ file Word.")
                     except Exception as e:
-                        st.error(f"❌ Lỗi khi đọc file Word: {e}")
+                        st.error("❌ Lỗi khi đọc file Word.")
                         hop_le = False
                 elif file_ext == 'txt':
                     noidung_van_ban_goc = file_tai_len.getvalue().decode("utf-8")
-                    st.info("✅ Đã đọc xong dữ liệu Text.")
-            
             else:
                 noidung_van_ban_goc = van_ban_goc
 
+            # --- GỌI AI NHẢ CHỮ LIVE ---
             if hop_le:
                 try:
-                    # --- BẬT LẠI RADAR TÌM MODEL ĐỂ TRÁNH LỖI 404 ---
-                    model_name = 'gemini-1.5-flash-latest' # Tên dự phòng 
-                    for m in genai.list_models():
-                        if 'generateContent' in m.supported_generation_methods:
-                            # Phải bắt đúng dòng họ 1.5 thì mới có "Mắt thần" đọc PDF
-                            if '1.5' in m.name and ('flash' in m.name or 'pro' in m.name):
-                                model_name = m.name
-                                break
-                    
-                    model = genai.GenerativeModel(model_name)
-                    # -----------------------------------------------
+                    # Chốt cứng model mạnh nhất
+                    model = genai.GenerativeModel('gemini-1.5-flash')
                     
                     if "Tóm tắt" in che_do:
-                        loi_dan = "Bạn là một chuyên viên tổng hợp tài liệu chuyên nghiệp của cơ quan Đảng. Hãy đọc tài liệu đính kèm và tóm tắt lại những nội dung cốt lõi nhất một cách cực kỳ ngắn gọn, súc tích trong khoảng 3 đến 5 câu. Giữ văn phong trang trọng, nghiêm túc."
+                        loi_dan = "Bạn là chuyên viên tổng hợp của cơ quan Đảng. Hãy đọc và tóm tắt cốt lõi tài liệu trong 3-5 câu súc tích. Văn phong trang trọng."
                     elif "Ý chính" in che_do:
-                        loi_dan = "Bạn là một chuyên viên tổng hợp tài liệu chuyên nghiệp. Hãy đọc tài liệu đính kèm và trích xuất ra các luận điểm, ý chính quan trọng nhất. Trình bày dưới dạng các gạch đầu dòng rõ ràng, dễ hiểu. Bỏ qua các từ ngữ rườm rà."
+                        loi_dan = "Bạn là chuyên viên tổng hợp. Đọc tài liệu và trích xuất luận điểm, ý chính bằng gạch đầu dòng rõ ràng."
                     else:
-                        loi_dan = "Bạn là một thư ký xuất sắc. Hãy đọc tài liệu đính kèm và lập một dàn ý chi tiết theo cấu trúc phân cấp (I, II, III... rồi đến 1, 2, 3...). Dàn ý phải bao quát toàn bộ nội dung của văn bản, các tiêu đề phải ngắn gọn, toát lên được ý chính của từng phần."
+                        loi_dan = "Lập dàn ý chi tiết (I, II, III, 1, 2, 3...) cho tài liệu này. Bao quát toàn bộ nội dung."
 
                     noi_dung_gui_di = [loi_dan]
-                    if file_duoc_upload_len_ai:
+                    if file_duoc_upload_len_ai: 
                         noi_dung_gui_di.append(file_duoc_upload_len_ai)
-                    if noidung_van_ban_goc:
+                    if noidung_van_ban_goc: 
                         noi_dung_gui_di.append(f"\n\nVĂN BẢN:\n{noidung_van_ban_goc}")
 
                     st.markdown("---")
                     st.markdown("<h3 style='color: #10b981;'>✨ KẾT QUẢ XỬ LÝ TỪ AI:</h3>", unsafe_allow_html=True)
-                    
                     khung_ket_qua = st.empty()
                     van_ban_hoan_thanh = ""
                     
-                    # NHẢ CHỮ LIVE
+                    # Truyền dữ liệu và bật nhả chữ Live
                     response = model.generate_content(noi_dung_gui_di, stream=True)
-                    
                     for chunk in response:
                         van_ban_hoan_thanh += chunk.text
                         khung_ket_qua.markdown(f"<div class='result-box'>{van_ban_hoan_thanh}</div>", unsafe_allow_html=True)
                     
+                    # Xóa file PDF bảo mật sau khi xử lý xong
                     if file_duoc_upload_len_ai:
-                        try:
-                            genai.delete_file(file_duoc_upload_len_ai.name)
-                        except Exception:
-                            pass
+                        try: genai.delete_file(file_duoc_upload_len_ai.name)
+                        except: pass
                         
                 except Exception as e:
-                    error_msg = str(e)
-                    st.error(f"❌ Có lỗi mạng xảy ra trong quá trình kết nối với AI. (Chi tiết: {error_msg})")
+                    st.error(f"❌ Có lỗi mạng trong quá trình gọi AI. (Chi tiết: {str(e)})")
 
-# Footer
-st.markdown("<br><hr><p style='text-align:center; color:#94a3b8; font-size: 0.85rem;'>Phát triển bởi Ngạc Văn Tuấn - Tích hợp AI Google Gemini 1.5</p>", unsafe_allow_html=True)
+st.markdown("<br><hr><p style='text-align:center; color:#94a3b8; font-size: 0.85rem;'>Phát triển bởi Ngạc Văn Tuấn</p>", unsafe_allow_html=True)
