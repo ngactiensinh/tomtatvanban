@@ -153,11 +153,25 @@ if nut_xu_ly:
                     
                     response = model.generate_content(prompt)
                     
+                    # --- BẮT ĐẦU SỬA TỪ ĐOẠN NÀY ---
+                    
                     st.markdown("---")
                     st.markdown("<h3 style='color: #10b981;'>✨ KẾT QUẢ XỬ LÝ TỪ AI:</h3>", unsafe_allow_html=True)
-                    st.markdown(f"<div class='result-box'>{response.text}</div>", unsafe_allow_html=True)
                     
+                    # Gọi AI và bật chế độ stream=True (Nhả chữ live)
+                    response = model.generate_content(prompt, stream=True)
+                    
+                    # Tạo một khung trống để chữ chạy ra từ từ
+                    khung_ket_qua = st.empty()
+                    van_ban_hoan_thanh = ""
+                    
+                    for chunk in response:
+                        van_ban_hoan_thanh += chunk.text
+                        # Cập nhật liên tục vào khung
+                        khung_ket_qua.markdown(f"<div class='result-box'>{van_ban_hoan_thanh}</div>", unsafe_allow_html=True)
+                        
                 except Exception as e:
+                    # --- KẾT THÚC ĐOẠN SỬA ---
                     error_msg = str(e)
                     if "429" in error_msg or "quota" in error_msg.lower():
                         st.warning("⚠️ Lỗi quá tải (429): Quá nhiều người đang sử dụng hoặc sếp vừa chạy 2 lệnh sát nhau quá. Vui lòng uống ngụm trà đợi 1 phút rồi bấm lại nhé!")
