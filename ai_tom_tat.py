@@ -3,7 +3,6 @@ import google.generativeai as genai
 from supabase import create_client, Client
 import PyPDF2
 import docx
-import io
 
 # ==========================================
 # CẤU HÌNH TRANG & GIAO DIỆN
@@ -81,10 +80,10 @@ col1, col2 = st.columns([1.2, 1])
 
 with col1:
     st.markdown("**📂 CÁCH 1: Tải lên file tài liệu (Tối ưu nhất)**")
-    file_tai_len = st.file_uploader("Hỗ trợ định dạng: Word (.docx), PDF (.pdf), Text (.txt)", type=["pdf", "docx", "txt"])
+    file_tai_len = st.file_uploader("Hỗ trợ: Word (.docx), PDF chữ chuẩn, Text (.txt)", type=["pdf", "docx", "txt"])
     
     st.markdown("**📝 CÁCH 2: Dán văn bản thủ công**")
-    van_ban_goc = st.text_area("", height=180, placeholder="Nếu không có file, hãy dán nội dung vào đây...")
+    van_ban_goc = st.text_area("", height=180, placeholder="Nếu là PDF scan ảnh, hãy bôi đen copy chữ và dán thủ công vào đây...")
 
 with col2:
     st.markdown("**🎯 Chọn Yêu cầu Xử lý:**")
@@ -105,28 +104,38 @@ if nut_xu_ly:
     if not api_key:
         st.error("⚠️ Hệ thống đang thiếu chìa khóa. Vui lòng kiểm tra lại thiết lập Secrets.")
     else:
-        # Lấy nội dung: Ưu tiên file tải lên, nếu không có thì lấy text ở ô dán
         noidung_can_xu_ly = ""
+        hop_le = True
+        
+        # --- BỘ PHẬN X-QUANG ĐỌC FILE ---
         if file_tai_len is not None:
             with st.spinner("⏳ Đang trích xuất văn bản từ file..."):
                 noidung_can_xu_ly = doc_noi_dung_file(file_tai_len)
+                so_ky_tu = len(noidung_can_xu_ly)
+                
+                # Cảnh báo nếu là file ảnh/scan
+                if so_ky_tu < 50:
+                    st.error("❌ CẢNH BÁO MÙ CHỮ: Hệ thống không đọc được chữ nào từ file này! Đây có thể là file ảnh hoặc PDF dạng scan. Vui lòng dùng file Word hoặc dán chữ thủ công.")
+                    hop_le = False
+                else:
+                    st.info(f"🔎 X-Quang: Đã trích xuất thành công **{so_ky_tu:,}** ký tự từ file.")
+                    # Cắt ngọn nếu file quá dài (Tránh lỗi 429)
+                    if so_ky_tu > 150000:
+                        st.warning("⚠️ Tài liệu siêu dài! Để chống cháy nổ hệ thống, AI sẽ chỉ đọc và xử lý 150.000 ký tự đầu tiên.")
+                        noidung_can_xu_ly = noidung_can_xu_ly[:150000]
         else:
             noidung_can_xu_ly = van_ban_goc
-            
-        if not noidung_can_xu_ly.strip():
-            st.warning("⚠️ Bạn chưa tải file lên hoặc chưa dán văn bản nào!")
-        else:
-            with st.spinner("🤖 Trợ lý AI đang phân tích dữ liệu..."):
+            if not noidung_can_xu_ly.strip():
+                st.warning("⚠️ Bạn chưa tải file lên hoặc chưa dán văn bản nào!")
+                hop_le = False
+                
+        # --- ĐƯA CHO AI XỬ LÝ ---
+        if hop_le:
+            with st.spinner("🤖 Trợ lý AI đang tư duy và phân tích dữ liệu..."):
                 try:
+                    # Vì sếp đã có key xịn mới, chốt luôn bản 1.5 Flash chuẩn để không bị kén quota
                     genai.configure(api_key=api_key)
-                    model_name = 'gemini-pro' 
-                    for m in genai.list_models():
-                        if 'generateContent' in m.supported_generation_methods:
-                            model_name = m.name
-                            if 'flash' in model_name: 
-                                break 
-                    
-                    model = genai.GenerativeModel(model_name)
+                    model = genai.GenerativeModel('gemini-1.5-flash')
                     
                     if "Tóm tắt" in che_do:
                         prompt = f"Bạn là một chuyên viên tổng hợp tài liệu chuyên nghiệp của cơ quan Đảng. Hãy đọc đoạn văn bản sau và tóm tắt lại những nội dung cốt lõi nhất một cách cực kỳ ngắn gọn, súc tích trong khoảng 3 đến 5 câu. Giữ văn phong trang trọng, nghiêm túc.\n\nVĂN BẢN CẦN TÓM TẮT:\n{noidung_can_xu_ly}"
@@ -144,7 +153,7 @@ if nut_xu_ly:
                 except Exception as e:
                     error_msg = str(e)
                     if "429" in error_msg or "quota" in error_msg.lower():
-                        st.warning("⚠️ Lỗi quá tải: Tài liệu của đồng chí tải lên quá dài (vượt quá giới hạn đọc 200 trang/lần) hoặc hệ thống đang có nhiều người dùng. Vui lòng cắt bớt độ dài tài liệu hoặc đợi 1 phút sau rồi bấm lại nhé!")
+                        st.warning("⚠️ Lỗi quá tải (429): Quá nhiều người đang sử dụng hoặc sếp vừa chạy 2 lệnh sát nhau quá. Vui lòng uống ngụm trà đợi 1 phút rồi bấm lại nhé!")
                     else:
                         st.error(f"❌ Có lỗi mạng xảy ra trong quá trình kết nối với AI. (Chi tiết: {error_msg})")
 
