@@ -1,6 +1,9 @@
 import streamlit as st
 import google.generativeai as genai
 from supabase import create_client, Client
+import PyPDF2
+import docx
+import io
 
 # ==========================================
 # CẤU HÌNH TRANG & GIAO DIỆN
@@ -18,7 +21,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---- GHI LƯỢT TRUY CẬP (SUPABASE) ----
+# ---- GHI LƯỢT TRUY CẬP ----
 if "da_ghi_truy_cap" not in st.session_state:
     try:
         _sb = create_client(
@@ -29,39 +32,59 @@ if "da_ghi_truy_cap" not in st.session_state:
         st.session_state["da_ghi_truy_cap"] = True
     except Exception:
         pass
-# ---- HẾT GHI LƯỢT TRUY CẬP ----
+
+# ==========================================
+# CẤU HÌNH API KEY (TỪ KÉT SẮT)
+# ==========================================
+with st.sidebar:
+    st.markdown("<h3 style='color:#004B87;'>⚙️ CẤU HÌNH HỆ THỐNG</h3>", unsafe_allow_html=True)
+    try:
+        api_key = st.secrets["GEMINI_API_KEY"]
+        st.success("✅ Trợ lý AI đã kết nối an toàn với Két sắt bí mật.")
+    except Exception:
+        api_key = None
+        st.error("⚠️ Lỗi: Không tìm thấy chìa khóa API trong hệ thống!")
+        
+    st.markdown("---")
+    st.markdown("💡 **Gợi ý sử dụng:**<br>1. Tải lên file Word (.docx) hoặc PDF.<br>2. Hoặc Copy nội dung dán vào ô.<br>3. Chọn chế độ Tóm tắt và bấm Thực hiện.", unsafe_allow_html=True)
 
 # ==========================================
 # HEADER
 # ==========================================
 st.markdown("<h1 class='main-title'>🤖 TRỢ LÝ AI TÓM TẮT VĂN BẢN</h1>", unsafe_allow_html=True)
-st.markdown("<p class='sub-title'>Giải pháp xử lý tài liệu thông minh dành cho Cán bộ, Chuyên viên</p>", unsafe_allow_html=True)
+st.markdown("<p class='sub-title'>Giải pháp đọc và xử lý tài liệu thông minh dành cho Cán bộ, Chuyên viên</p>", unsafe_allow_html=True)
 
 # ==========================================
-# CẤU HÌNH API KEY (Lấy từ Két sắt bảo mật)
+# HÀM ĐỌC NỘI DUNG TỪ FILE
 # ==========================================
-with st.sidebar:
-    st.markdown("<h3 style='color:#004B87;'>⚙️ CẤU HÌNH HỆ THỐNG</h3>", unsafe_allow_html=True)
-    
-    # Ra lệnh cho hệ thống chui vào Két sắt (st.secrets) để lấy chìa khóa
+def doc_noi_dung_file(file):
+    text = ""
     try:
-        api_key = st.secrets["GEMINI_API_KEY"]
-        st.success("✅ Trợ lý AI đã được kết nối an toàn với bộ não Google Gemini.")
-    except Exception:
-        api_key = None
-        st.error("⚠️ Lỗi: Không tìm thấy API Key trong Két sắt bí mật!")
-        
-    st.markdown("---")
-    st.markdown("💡 **Gợi ý sử dụng:**<br>- Copy nội dung Đề cương, Báo cáo dài dán vào ô bên phải.<br>- Chọn chế độ Tóm tắt và bấm nút Thực hiện.", unsafe_allow_html=True)
+        if file.name.endswith('.pdf'):
+            reader = PyPDF2.PdfReader(file)
+            for page in reader.pages:
+                text += page.extract_text() + "\n"
+        elif file.name.endswith('.docx'):
+            doc = docx.Document(file)
+            for para in doc.paragraphs:
+                text += para.text + "\n"
+        elif file.name.endswith('.txt'):
+            text = file.getvalue().decode("utf-8")
+    except Exception as e:
+        st.error(f"Lỗi khi đọc file: {e}")
+    return text
 
 # ==========================================
-# XỬ LÝ LOGIC AI
+# GIAO DIỆN CHÍNH
 # ==========================================
 col1, col2 = st.columns([1.2, 1])
 
 with col1:
-    st.markdown("**📝 Dán nội dung văn bản cần xử lý vào đây:**")
-    van_ban_goc = st.text_area("", height=350, placeholder="Ví dụ: Dán nội dung Báo cáo chính trị, Đề cương tuyên truyền, hoặc bất kỳ văn bản dài nào vào đây...")
+    st.markdown("**📂 CÁCH 1: Tải lên file tài liệu (Tối ưu nhất)**")
+    file_tai_len = st.file_uploader("Hỗ trợ định dạng: Word (.docx), PDF (.pdf), Text (.txt)", type=["pdf", "docx", "txt"])
+    
+    st.markdown("**📝 CÁCH 2: Dán văn bản thủ công**")
+    van_ban_goc = st.text_area("", height=180, placeholder="Nếu không có file, hãy dán nội dung vào đây...")
 
 with col2:
     st.markdown("**🎯 Chọn Yêu cầu Xử lý:**")
@@ -72,52 +95,54 @@ with col2:
          "🗺️ Lập Dàn ý chi tiết (Trình bày cấu trúc I, II, III...)")
     )
     
-    st.markdown("<br>", unsafe_allow_html=True)
-    nut_xu_ly = st.button("🚀 BẮT ĐẦU XỬ LÝ VĂN BẢN")
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    nut_xu_ly = st.button("🚀 BẮT ĐẦU ĐỌC VÀ XỬ LÝ")
 
 # ==========================================
-# GỌI AI VÀ HIỂN THỊ KẾT QUẢ
+# XỬ LÝ LOGIC AI
 # ==========================================
 if nut_xu_ly:
     if not api_key:
-        st.error("⚠️ Lỗi hệ thống: Không tìm thấy Google Gemini API Key!")
-    elif not van_ban_goc.strip():
-        st.warning("⚠️ Bạn chưa nhập văn bản nào để tôi xử lý cả!")
+        st.error("⚠️ Hệ thống đang thiếu chìa khóa. Vui lòng kiểm tra lại thiết lập Secrets.")
     else:
-        with st.spinner("🤖 Trợ lý AI đang đọc và phân tích tài liệu... (Thường mất khoảng 3-5 giây)"):
-            try:
-                # Kích hoạt não bộ Gemini
-                genai.configure(api_key=api_key)
-                
-                # --- RADAR TỰ ĐỘNG DÒ TÌM MODEL CHUẨN ---
-                model_name = 'gemini-pro' # Tên dự phòng mặc định
-                for m in genai.list_models():
-                    if 'generateContent' in m.supported_generation_methods:
-                        model_name = m.name # Lấy chính xác tên model mà Google cấp cho Key này
-                        if 'flash' in model_name: 
-                            break # Ưu tiên chốt bản Flash vì nó phản hồi siêu nhanh
-                
-                model = genai.GenerativeModel(model_name)
-                # -----------------------------------------
-                
-                # Tạo câu lệnh (Prompt) ép AI làm theo đúng format
-                if "Tóm tắt" in che_do:
-                    prompt = f"Bạn là một chuyên viên tổng hợp tài liệu chuyên nghiệp của cơ quan Đảng. Hãy đọc đoạn văn bản sau và tóm tắt lại những nội dung cốt lõi nhất một cách cực kỳ ngắn gọn, súc tích trong khoảng 3 đến 5 câu. Giữ văn phong trang trọng, nghiêm túc.\n\nVĂN BẢN CẦN TÓM TẮT:\n{van_ban_goc}"
-                elif "Ý chính" in che_do:
-                    prompt = f"Bạn là một chuyên viên tổng hợp tài liệu chuyên nghiệp. Hãy đọc đoạn văn sau và trích xuất ra các luận điểm, ý chính quan trọng nhất. Trình bày dưới dạng các gạch đầu dòng rõ ràng, dễ hiểu. Bỏ qua các từ ngữ rườm rà.\n\nVĂN BẢN CẦN TRÍCH XUẤT:\n{van_ban_goc}"
-                else:
-                    prompt = f"Bạn là một thư ký xuất sắc. Hãy đọc tài liệu sau và lập một dàn ý chi tiết theo cấu trúc phân cấp (I, II, III... rồi đến 1, 2, 3...). Dàn ý phải bao quát toàn bộ nội dung của văn bản, các tiêu đề phải ngắn gọn, toát lên được ý chính của từng phần.\n\nVĂN BẢN CẦN LẬP DÀN Ý:\n{van_ban_goc}"
-                
-                # Bắn yêu cầu cho AI
-                response = model.generate_content(prompt)
-                
-                # Hiển thị kết quả
-                st.markdown("---")
-                st.markdown("<h3 style='color: #10b981;'>✨ KẾT QUẢ XỬ LÝ:</h3>", unsafe_allow_html=True)
-                st.markdown(f"<div class='result-box'>{response.text}</div>", unsafe_allow_html=True)
-                
-            except Exception as e:
-                st.error(f"❌ Có lỗi xảy ra trong quá trình kết nối với AI. Vui lòng thử lại sau. (Lỗi: {e})")
+        # Lấy nội dung: Ưu tiên file tải lên, nếu không có thì lấy text ở ô dán
+        noidung_can_xu_ly = ""
+        if file_tai_len is not None:
+            with st.spinner("⏳ Đang trích xuất văn bản từ file..."):
+                noidung_can_xu_ly = doc_noi_dung_file(file_tai_len)
+        else:
+            noidung_can_xu_ly = van_ban_goc
+            
+        if not noidung_can_xu_ly.strip():
+            st.warning("⚠️ Bạn chưa tải file lên hoặc chưa dán văn bản nào!")
+        else:
+            with st.spinner("🤖 Trợ lý AI đang phân tích dữ liệu..."):
+                try:
+                    genai.configure(api_key=api_key)
+                    model_name = 'gemini-pro' 
+                    for m in genai.list_models():
+                        if 'generateContent' in m.supported_generation_methods:
+                            model_name = m.name
+                            if 'flash' in model_name: 
+                                break 
+                    
+                    model = genai.GenerativeModel(model_name)
+                    
+                    if "Tóm tắt" in che_do:
+                        prompt = f"Bạn là một chuyên viên tổng hợp tài liệu chuyên nghiệp của cơ quan Đảng. Hãy đọc đoạn văn bản sau và tóm tắt lại những nội dung cốt lõi nhất một cách cực kỳ ngắn gọn, súc tích trong khoảng 3 đến 5 câu. Giữ văn phong trang trọng, nghiêm túc.\n\nVĂN BẢN CẦN TÓM TẮT:\n{noidung_can_xu_ly}"
+                    elif "Ý chính" in che_do:
+                        prompt = f"Bạn là một chuyên viên tổng hợp tài liệu chuyên nghiệp. Hãy đọc đoạn văn sau và trích xuất ra các luận điểm, ý chính quan trọng nhất. Trình bày dưới dạng các gạch đầu dòng rõ ràng, dễ hiểu. Bỏ qua các từ ngữ rườm rà.\n\nVĂN BẢN CẦN TRÍCH XUẤT:\n{noidung_can_xu_ly}"
+                    else:
+                        prompt = f"Bạn là một thư ký xuất sắc. Hãy đọc tài liệu sau và lập một dàn ý chi tiết theo cấu trúc phân cấp (I, II, III... rồi đến 1, 2, 3...). Dàn ý phải bao quát toàn bộ nội dung của văn bản, các tiêu đề phải ngắn gọn, toát lên được ý chính của từng phần.\n\nVĂN BẢN CẦN LẬP DÀN Ý:\n{noidung_can_xu_ly}"
+                    
+                    response = model.generate_content(prompt)
+                    
+                    st.markdown("---")
+                    st.markdown("<h3 style='color: #10b981;'>✨ KẾT QUẢ XỬ LÝ TỪ AI:</h3>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='result-box'>{response.text}</div>", unsafe_allow_html=True)
+                    
+                except Exception as e:
+                    st.error(f"❌ Có lỗi xảy ra trong quá trình kết nối với AI. (Chi tiết: {e})")
 
 # Footer
-st.markdown("<br><hr><p style='text-align:center; color:#94a3b8; font-size: 0.85rem;'>Phát triển bởi Ngạc Văn Tuấn - Tích hợp trí tuệ nhân tạo Google Gemini 1.5</p>", unsafe_allow_html=True)
+st.markdown("<br><hr><p style='text-align:center; color:#94a3b8; font-size: 0.85rem;'>Phát triển bởi Ngạc Văn Tuấn - Tích hợp trí tuệ nhân tạo Google Gemini</p>", unsafe_allow_html=True)
