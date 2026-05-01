@@ -38,15 +38,19 @@ st.markdown("<h1 class='main-title'>🤖 TRỢ LÝ AI TÓM TẮT VĂN BẢN</h1>
 st.markdown("<p class='sub-title'>Giải pháp xử lý tài liệu thông minh dành cho Cán bộ, Chuyên viên</p>", unsafe_allow_html=True)
 
 # ==========================================
-# CẤU HÌNH API KEY (Tích hợp sẵn)
+# CẤU HÌNH API KEY (Lấy từ Két sắt bảo mật)
 # ==========================================
 with st.sidebar:
     st.markdown("<h3 style='color:#004B87;'>⚙️ CẤU HÌNH HỆ THỐNG</h3>", unsafe_allow_html=True)
-    st.success("✅ Trợ lý AI đã được kết nối tự động với bộ não của Google Gemini.")
     
-    # Nạp sẵn API Key và làm mờ bằng password
-    api_key = st.text_input("Khóa API Hệ thống:", value="AIzaSyAACvh-L9CMQomundLJl1BY9Clr1gfVwew", type="password", disabled=True)
-    
+    # Ra lệnh cho hệ thống chui vào Két sắt (st.secrets) để lấy chìa khóa
+    try:
+        api_key = st.secrets["GEMINI_API_KEY"]
+        st.success("✅ Trợ lý AI đã được kết nối an toàn với bộ não Google Gemini.")
+    except Exception:
+        api_key = None
+        st.error("⚠️ Lỗi: Không tìm thấy API Key trong Két sắt bí mật!")
+        
     st.markdown("---")
     st.markdown("💡 **Gợi ý sử dụng:**<br>- Copy nội dung Đề cương, Báo cáo dài dán vào ô bên phải.<br>- Chọn chế độ Tóm tắt và bấm nút Thực hiện.", unsafe_allow_html=True)
 
