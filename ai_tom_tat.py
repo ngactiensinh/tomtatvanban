@@ -141,7 +141,7 @@ if nut_xu_ly:
                     st.markdown("<h3 style='color: #10b981;'>✨ KẾT QUẢ XỬ LÝ TỪ AI:</h3>", unsafe_allow_html=True)
                     st.markdown(f"<div class='result-box'>{response.text}</div>", unsafe_allow_html=True)
                     
-               except Exception as e:
+                except Exception as e:
                     error_msg = str(e)
                     if "429" in error_msg or "quota" in error_msg.lower():
                         st.warning("⚠️ Lỗi quá tải: Tài liệu của đồng chí tải lên quá dài (vượt quá giới hạn đọc 200 trang/lần) hoặc hệ thống đang có nhiều người dùng. Vui lòng cắt bớt độ dài tài liệu hoặc đợi 1 phút sau rồi bấm lại nhé!")
